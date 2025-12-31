@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAFTAR PEMINJAM AKTIF</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #2563eb;
+            --bg-body: #f8f9fa; 
+            --text-main: #202124; 
+            --bg-card: #ffffff;
+            --border-color: #dadce0;
+        }
+        body.dark-theme { 
+            --bg-body: #0f172a; 
+            --text-main: #f1f5f9; 
+            --bg-card: #1e293b;
+            --border-color: #334155;
+        }
+        body { 
+            background-color: var(--bg-body); 
+            color: var(--text-main); 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            transition: all 0.3s;
+        }
+        .glass { 
+            background: var(--bg-card); 
+            border: 1px solid var(--border-color); 
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+        #toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; }
+        .toast-msg { background: var(--text-main); color: var(--bg-card); padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        
+        .modal-container {
+            position: fixed; inset: 0; z-index: 100;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+<div id="toast-container"></div>
+
+<div id="modal-confirm" class="modal-container">
+    <div class="glass w-full max-w-[320px] p-6 text-center">
+        <h4 class="font-extrabold mb-2">Konfirmasi Pengembalian</h4>
+        <p id="modal-text" class="text-xs opacity-60 mb-6">Apakah buku ini sudah dikembalikan?</p>
+        <div class="flex gap-2">
+            <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/10 font-bold text-xs">Batal</button>
+            <button id="modal-confirm-btn" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold text-xs">Ya, Kembali</button>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-6xl mx-auto">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+                    <i class="fas fa-book-reader text-sm"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold tracking-tighter">Peminjam Aktif</h1>
+            </div>
+            <p class="text-xs font-medium opacity-60">Daftar santri yang sedang membawa buku</p>
+        </div>
+        <div class="relative w-full sm:w-72">
+            <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 opacity-30 text-xs"></i>
+            <input type="text" id="searchInp" placeholder="Cari nama, judul, atau blok..." class="w-full pl-12 pr-5 py-4 rounded-2xl outline-none text-xs font-semibold glass">
+        </div>
+    </div>
+
+    <div class="glass overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40 w-12 text-center">No</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40">Peminjam</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40">Lokasi / Blok</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40">Buku & Pengarang</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40 text-center">Tgl Pinjam</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40 text-center">Jatuh Tempo</th>
+                        <th class="p-4 text-[10px] font-black uppercase opacity-40 text-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div id="emptyState" class="p-20 text-center hidden">
+            <i class="fas fa-folder-open text-3xl opacity-10 mb-4 block"></i>
+            <p class="text-xs font-bold opacity-40">Tidak ada data peminjaman aktif</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = { 
+        apiKey: "AIzaSyBB-vrCvxeSapbedNqQIfZ9Bh5de-sUDAQ", 
+        databaseURL: "https://databuku-6385c-default-rtdb.firebaseio.com", 
+        projectId: "databuku-6385c" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(), rtdb = firebase.database();
+
+    let rawData = [];
+
+    rtdb.ref('settings/dark_mode').on('value', snap => {
+        document.body.classList.toggle('dark-theme', snap.val() === true);
+    });
+
+    function fetchLoans() {
+        db.collection("peminjaman_v2")
+          .where("status", "==", "DIPINJAM")
+          .onSnapshot(snapshot => {
+            rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderData();
+        });
+    }
+
+    function formatDate(ts) {
+        if(!ts) return "-";
+        const d = ts.toDate();
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function showToast(msg) {
+        const t = document.createElement('div'); 
+        t.className = 'toast-msg'; 
+        t.textContent = msg;
+        document.getElementById('toast-container').innerHTML = '';
+        document.getElementById('toast-container').appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+
+    function renderData() {
+        const search = document.getElementById('searchInp').value.toLowerCase();
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        const filtered = rawData.filter(d => {
+            return (d.nama_anggota || "").toLowerCase().includes(search) || 
+                   (d.judul_buku || "").toLowerCase().includes(search) ||
+                   (d.blok || "").toLowerCase().includes(search) ||
+                   (d.anggota_id || "").toLowerCase().includes(search);
+        });
+
+        if (filtered.length === 0) {
+            document.getElementById('emptyState').classList.remove('hidden');
+        } else {
+            document.getElementById('emptyState').classList.add('hidden');
+            filtered.forEach((d, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-[11px] font-bold";
+                
+                tr.innerHTML = `
+                    <td class="p-4 text-center opacity-30">${index + 1}</td>
+                    <td class="p-4">
+                        <div class="text-blue-600 dark:text-blue-400 font-extrabold">${d.nama_anggota}</div>
+                        <div class="text-[9px] opacity-50 uppercase tracking-tighter">${d.anggota_id}</div>
+                    </td>
+                    <td class="p-4 opacity-70">${d.blok || '-'}</td>
+                    <td class="p-4">
+                        <div>${d.judul_buku}</div>
+                        <div class="text-[9px] text-emerald-500 font-bold uppercase">${d.pengarang || 'Tanpa Pengarang'}</div>
+                    </td>
+                    <td class="p-4 text-center opacity-60">${formatDate(d.tgl_pinjam)}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2 py-1 rounded-lg bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                            ${formatDate(d.tgl_kembali)}
+                        </span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="confirmReturn('${d.id}')" class="action-btn bg-blue-600/10 text-blue-600 ml-auto hover:bg-blue-600 hover:text-white">
+                            <i class="fas fa-check text-[10px]"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    let selectedId = null;
+    function confirmReturn(id) {
+        selectedId = id;
+        document.getElementById('modal-confirm').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('modal-confirm').style.display = 'none';
+        selectedId = null;
+    }
+
+    document.getElementById('modal-confirm-btn').onclick = async () => {
+        if(!selectedId) return;
+        try {
+            await db.collection("peminjaman_v2").doc(selectedId).update({
+                status: "KEMBALI",
+                tgl_dikembalikan: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showToast("Buku berhasil dikembalikan");
+            closeModal();
+        } catch(e) {
+            showToast("Gagal memproses data");
+        }
+    };
+
+    document.getElementById('searchInp').addEventListener('input', renderData);
+    window.onload = fetchLoans;
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Data Flat - RTDB</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --color-gradient-start: #2563eb; 
+            --color-gradient-end: #3b82f6; 
+        }
+        .bg-primary-gradient { 
+            background-image: linear-gradient(to right, var(--color-gradient-start), var(--color-gradient-end)); 
+        }
+        .text-primary-gradient {
+            background-image: linear-gradient(to right, var(--color-gradient-start), var(--color-gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 p-4">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="mb-8 border-b pb-4 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Panel <span class="text-primary-gradient">Data Flat</span></h1>
+                <p class="text-xs text-slate-500 mt-1">Sinkronisasi Realtime Database (RTDB)</p>
+            </div>
+            <div id="statusSync" class="text-[10px] font-bold bg-green-100 text-green-600 px-3 py-1 rounded-full uppercase tracking-wider">
+                Terhubung
+            </div>
+        </div>
+
+        <div class="relative mb-6">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </span>
+            <input type="text" id="searchInput" placeholder="Cari judul, penulis, atau kode ekslempar..." 
+                   class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition">
+        </div>
+
+        <div id="flatDataContainer" class="space-y-3 custom-scrollbar">
+            <div class="text-center py-10 text-slate-400">Memuat data flat...</div>
+        </div>
+
+        <div class="mt-6 flex justify-between items-center text-xs text-slate-400 border-t pt-4">
+            <div id="totalInfo">Total: 0 Data</div>
+            <div>Halaman ini hanya membaca data dari RTDB</div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBB-vrCvxeSapbedNqQIfZ9Bh5de-sUDAQ",
+            authDomain: "databuku-6385c.firebaseapp.com",
+            databaseURL: "https://databuku-6385c-default-rtdb.firebaseio.com",
+            projectId: "databuku-6385c",
+            storageBucket: "databuku-6385c.firebasestorage.app",
+            messagingSenderId: "844439345466",
+            appId: "1:844439345466:web:fb90dfc8337a96f0621803"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+        
+        let allFlatData = [];
+
+        function renderFlatData(dataArray) {
+            const container = document.getElementById('flatDataContainer');
+            const totalInfo = document.getElementById('totalInfo');
+            
+            totalInfo.innerText = `Total: ${dataArray.length} Data`;
+
+            if (dataArray.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-slate-400">Tidak ada data ditemukan.</div>`;
+                return;
+            }
+
+            container.innerHTML = dataArray.map(item => `
+                <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition group">
+                    <div class="flex justify-between items-start">
+                        <div class="min-w-0 flex-grow">
+                            <h3 class="font-bold text-slate-800 truncate group-hover:text-blue-600 transition">${item.judul || 'Tanpa Judul'}</h3>
+                            <p class="text-sm text-slate-500 italic">${item.penulis || 'Penulis tidak diketahui'}</p>
+                        </div>
+                        <div class="ml-4 text-right flex-shrink-0">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Ekslempar</span>
+                            <div class="flex flex-wrap justify-end gap-1">
+                                ${item.kode ? item.kode.split(',').map(k => `<span class="bg-blue-100 text-blue-700 text-[9px] px-2 py-0.5 rounded font-mono font-bold">${k.trim()}</span>`).join('') : '<span class="text-slate-300">-</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initializeRTDB() {
+            const flatRef = rtdb.ref('data_flat');
+            const statusSync = document.getElementById('statusSync');
+
+            flatRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                allFlatData = [];
+                
+                if (data) {
+                    allFlatData = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+                }
+
+                statusSync.innerText = "Terhubung";
+                statusSync.className = "text-[10px] font-bold bg-green-100 text-green-600 px-3 py-1 rounded-full uppercase tracking-wider";
+                
+                handleSearch();
+            }, (error) => {
+                statusSync.innerText = "Terputus";
+                statusSync.className = "text-[10px] font-bold bg-red-100 text-red-600 px-3 py-1 rounded-full uppercase tracking-wider";
+            });
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allFlatData.filter(item => {
+                return (
+                    item.judul.toLowerCase().includes(query) ||
+                    item.penulis.toLowerCase().includes(query) ||
+                    item.kode.toLowerCase().includes(query)
+                );
+            });
+            renderFlatData(filtered);
+        }
+
+        document.getElementById('searchInput').onkeyup = handleSearch;
+
+        window.onload = initializeRTDB;
+    </script>
+</body>
+</html>

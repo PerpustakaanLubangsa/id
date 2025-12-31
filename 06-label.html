@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Label Punggung Buku</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        :root { 
+            --primary: #1a73e8;
+            --bg-body: #f8f9fa; 
+            --text-main: #3c4043; 
+            --text-sub: #5f6368;
+            --bg-card: #ffffff;
+            --border-color: #dadce0;
+            --input-bg: #ffffff;
+            --primary-light: #e8f0fe;
+        }
+
+        body.dark-theme { 
+            --bg-body: #202124; 
+            --text-main: #e8eaed; 
+            --text-sub: #bdc1c6;
+            --bg-card: #28292c;
+            --border-color: #3c4043;
+            --input-bg: #202124;
+            --primary-light: #3c4043;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .custom-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; }
+            #printArea { 
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 5mm; 
+                padding: 10mm;
+                width: 100%;
+            }
+            .label-spine { 
+                page-break-inside: avoid; 
+                border: 0.5pt solid #000 !important;
+                background: white !important;
+                color: black !important;
+                margin: 0 !important; 
+                height: auto !important;
+                min-height: 3.5cm;
+                width: 100% !important;
+                max-width: none !important;
+            }
+        }
+
+        .label-spine {
+            width: 6cm;
+            min-height: 3.5cm;
+            border: 1px solid #000;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            margin: 10px auto;
+        }
+
+        .label-header {
+            background-color: #e5e7eb;
+            border-bottom: 1px solid #000;
+            color: black;
+            font-size: 10px;
+            text-align: center;
+            font-weight: bold;
+            padding: 4px 2px;
+            text-transform: uppercase;
+        }
+
+        .label-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 8px 5px;
+        }
+
+        .title-row {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            border-bottom: 0.5px solid #eee;
+            padding-bottom: 3px;
+        }
+
+        .exemplar-code {
+            font-size: 8px;
+            font-weight: normal;
+            color: black;
+        }
+
+        .label-title-mini {
+            font-size: 8px;
+            font-weight: normal;
+            color: black;
+            line-height: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            max-width: 70%;
+        }
+
+        .call-number-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.3;
+            text-align: center;
+            width: 100%;
+        }
+
+        .call-number-line {
+            font-size: 12px;
+            font-weight: bold;
+            color: black;
+            text-transform: uppercase;
+        }
+
+        .biblio-item {
+            transition: all 0.2s;
+        }
+
+        .exemplar-badge {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--input-bg);
+            font-weight: 600;
+        }
+
+        .exemplar-badge.selected {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 4px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-select-all {
+            font-size: 10px;
+            color: var(--primary);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 custom-scrollbar">
+
+    <div class="max-w-6xl mx-auto no-print">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b pb-6" style="border-color: var(--border-color)">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight" style="color: var(--primary)">Label Punggung</h1>
+                <p style="color: var(--text-sub)" class="text-sm font-medium uppercase tracking-wider mt-1">Sistem Seleksi Ekslempar | 1 Baris 3 Label</p>
+            </div>
+            <div>
+                <button id="printBtn" onclick="window.print()" disabled class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-xl shadow-lg disabled:opacity-30 transition flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Cetak (<span id="selectedCount">0</span>) Label
+                </button>
+            </div>
+        </div>
+
+        <div id="biblioList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[65vh] overflow-y-auto custom-scrollbar p-1">
+            <div class="col-span-full text-center py-20 opacity-40 font-bold uppercase tracking-widest">Memproses Data...</div>
+        </div>
+
+        <div class="mt-8 flex justify-between items-center custom-card p-4 rounded-xl">
+            <button id="prevPage" class="px-5 py-2 rounded-lg font-bold disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Sebelumnya</button>
+            <span id="pageInfo" class="text-xs font-black uppercase tracking-widest">Halaman 1 / 1</span>
+            <button id="nextPage" class="px-5 py-2 rounded-lg font-bold disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Berikutnya</button>
+        </div>
+    </div>
+
+    <div id="printArea" class="hidden"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBB-vrCvxeSapbedNqQIfZ9Bh5de-sUDAQ",
+            authDomain: "databuku-6385c.firebaseapp.com",
+            databaseURL: "https://databuku-6385c-default-rtdb.firebaseio.com",
+            projectId: "databuku-6385c",
+            storageBucket: "databuku-6385c.firebasestorage.app",
+            messagingSenderId: "844439345466",
+            appId: "1:844439345466:web:fb90dfc8337a96f0621803"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const rtdb = firebase.database();
+
+        function setupDarkModeSync() {
+            rtdb.ref('settings/dark_mode').on('value', snap => {
+                if (snap.val() === true) {
+                    document.body.classList.add('dark-theme');
+                } else {
+                    document.body.classList.remove('dark-theme');
+                }
+            });
+        }
+
+        let globalBiblio = [];
+        let globalEkslempar = [];
+        let selectedItems = []; 
+        let currentPage = 1;
+        const itemsPerPage = 12;
+
+        function loadData() {
+            setupDarkModeSync();
+            
+            db.collection('ekslempar').onSnapshot(snap => {
+                globalEkslempar = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (globalBiblio.length > 0) renderList();
+            });
+
+            db.collection('biblio').orderBy('updatedAt', 'desc').onSnapshot(snap => {
+                globalBiblio = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderList();
+            });
+        }
+
+        function formatCallNumber(cn) {
+            if (!cn) return '';
+            return cn.split(' ').map(part => `<div class="call-number-line">${part}</div>`).join('');
+        }
+
+        function renderList() {
+            const container = document.getElementById('biblioList');
+            const start = (currentPage - 1) * itemsPerPage;
+            const paginated = globalBiblio.slice(start, start + itemsPerPage);
+            
+            if (globalBiblio.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-20 opacity-40 font-bold uppercase tracking-widest">Tidak ada data</div>`;
+                return;
+            }
+
+            container.innerHTML = paginated.map(b => {
+                const codes = Array.isArray(b.kode) ? b.kode : (b.kode ? [b.kode] : []);
+                const allSelected = codes.length > 0 && codes.every(code => selectedItems.some(item => item.biblioId === b.id && item.kode === code));
+
+                return `
+                <div class="biblio-item custom-card p-5 rounded-2xl flex flex-col gap-4 shadow-sm">
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold truncate">${b.judul || 'TANPA JUDUL'}</p>
+                            <p class="text-[10px] uppercase font-bold text-blue-500 mt-1">${codes.length} Ekslempar Terdeteksi</p>
+                        </div>
+                        <button onclick="toggleAllExemplars('${b.id}')" class="btn-select-all whitespace-nowrap">
+                            ${allSelected ? 'Batal' : 'Semua'}
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-3 border-t border-dashed" style="border-color: var(--border-color)">
+                        ${codes.map(code => {
+                            const isSelected = selectedItems.some(item => item.biblioId === b.id && item.kode === code);
+                            const eksData = globalEkslempar.find(e => e.kode === code);
+                            const np = eksData ? eksData.nomor_panggil : '-';
+                            return `
+                                <div onclick="toggleExemplar('${b.id}', '${code}')" 
+                                      class="exemplar-badge flex flex-col items-center ${isSelected ? 'selected' : ''}">
+                                    <span>${code}</span>
+                                    <span class="text-[8px] opacity-70 font-normal">${np}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            renderPrintArea();
+
+            document.getElementById('selectedCount').innerText = selectedItems.length;
+            document.getElementById('printBtn').disabled = selectedItems.length === 0;
+            const totalPages = Math.ceil(globalBiblio.length / itemsPerPage) || 1;
+            document.getElementById('pageInfo').innerText = `Halaman ${currentPage} / ${totalPages}`;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+        }
+
+        function toggleExemplar(id, code) {
+            const index = selectedItems.findIndex(item => item.biblioId === id && item.kode === code);
+            
+            if (index > -1) {
+                selectedItems.splice(index, 1);
+            } else {
+                const book = globalBiblio.find(b => b.id === id);
+                const eksData = globalEkslempar.find(e => e.kode === code);
+                if (book) {
+                    selectedItems.push({
+                        biblioId: book.id,
+                        judul: book.judul,
+                        nomor_panggil: eksData ? eksData.nomor_panggil : '',
+                        kode: code
+                    });
+                }
+            }
+            renderList();
+        }
+
+        function toggleAllExemplars(id) {
+            const book = globalBiblio.find(b => b.id === id);
+            if (!book) return;
+
+            const codes = Array.isArray(book.kode) ? book.kode : (book.kode ? [book.kode] : []);
+            const allSelected = codes.length > 0 && codes.every(code => selectedItems.some(item => item.biblioId === id && item.kode === code));
+
+            if (allSelected) {
+                selectedItems = selectedItems.filter(item => item.biblioId !== id);
+            } else {
+                codes.forEach(code => {
+                    if (!selectedItems.some(item => item.biblioId === id && item.kode === code)) {
+                        const eksData = globalEkslempar.find(e => e.kode === code);
+                        selectedItems.push({
+                            biblioId: book.id,
+                            judul: book.judul,
+                            nomor_panggil: eksData ? eksData.nomor_panggil : '',
+                            kode: code
+                        });
+                    }
+                });
+            }
+            renderList();
+        }
+
+        function renderPrintArea() {
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = selectedItems.map(item => `
+                <div class="label-spine">
+                    <div class="label-header">Perpustakaan Lubangsa</div>
+                    <div class="label-content">
+                        <div class="title-row">
+                            <span class="exemplar-code">${item.kode}</span>
+                            <span class="label-title-mini">${item.judul || ''}</span>
+                        </div>
+                        <div class="call-number-container">
+                            ${formatCallNumber(item.nomor_panggil)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('prevPage').onclick = () => { if(currentPage > 1) { currentPage--; renderList(); } };
+        document.getElementById('nextPage').onclick = () => { if(currentPage < Math.ceil(globalBiblio.length / itemsPerPage)) { currentPage++; renderList(); } };
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>

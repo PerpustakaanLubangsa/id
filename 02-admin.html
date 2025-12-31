@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <script>
+        if (sessionStorage.getItem('isAdmin') !== 'true') {
+            window.location.replace('login.html');
+            document.write('Akses ditolak. Mengalihkan...');
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUBANGSA Digital Library - Admin</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg-body: #f8f9fa;
+            --bg-sidebar: #ffffff;
+            --bg-box: #ffffff;
+            --bg-active: #e8f0fe;
+            --text-main: #3c4043;
+            --text-muted: #5f6368;
+            --border: #dadce0;
+        }
+        body.dark-theme {
+            --bg-body: #202124;
+            --bg-sidebar: #202124;
+            --bg-box: #28292c;
+            --bg-active: #3c4043;
+            --text-main: #e8eaed;
+            --text-muted: #bdc1c6;
+            --border: #3c4043;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg-body); 
+            color: var(--text-main); 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            transition: background 0.3s, color 0.3s;
+        }
+        .sidebar { 
+            width: 270px; 
+            background: var(--bg-sidebar); 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0; 
+            z-index: 50; 
+            height: 100vh;
+        }
+        .brand-section { 
+            padding: 24px 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand-icon { font-size: 1.25rem; color: var(--primary); }
+        .brand-text { font-size: 0.95rem; font-weight: 800; color: var(--text-main); line-height: 1.2; letter-spacing: 0.5px; text-transform: uppercase; }
+        .brand-text span { color: var(--primary); }
+        
+        .nav-container { padding: 12px; flex-grow: 1; overflow-y: auto; }
+        
+        .nav-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 20px 0 8px 16px;
+            opacity: 0.6;
+        }
+
+        .nav-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 8px 16px;
+            opacity: 0.5;
+        }
+
+        .nav-link { 
+            padding: 12px 16px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.875rem; 
+            border-radius: 8px;
+            transition: all 0.2s ease; 
+            color: var(--text-main); 
+            margin-bottom: 2px;
+        }
+        .nav-link:hover { background: var(--bg-active); }
+        .nav-link.active { 
+            color: var(--primary); 
+            background: var(--bg-active); 
+        }
+        
+        .main { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; overflow: hidden; }
+        .frame-box { 
+            background: var(--bg-box); 
+            flex-grow: 1; 
+            margin: 16px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            overflow: hidden; 
+            position: relative; 
+            display: flex;
+        }
+
+        iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            background: var(--bg-box);
+        }
+        
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .footer-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: 0.2s;
+            cursor: pointer;
+            color: var(--text-main);
+        }
+        .footer-btn:hover { background: var(--bg-active); }
+    </style>
+</head>
+<body>
+<div id="main-app" class="flex w-full h-screen">
+    <aside class="sidebar">
+        <div class="brand-section">
+            <i class="fas fa-book-reader brand-icon"></i>
+            <div class="brand-text">PERPUSTAKAAN<br><span>LUBANGSA</span></div>
+        </div>
+        <div id="dynamic-nav" class="nav-container">
+            <div class="nav-link" id="nav-beranda" onclick="loadFrame('beranda.html', this)">
+                <i class="fas fa-home w-5 text-center"></i> Beranda
+            </div>
+            
+            <div class="nav-divider"></div>
+            
+            <div class="nav-link" id="nav-sirkulasi" onclick="loadFrame('sirkulasi.html', this)">
+                <i class="fas fa-sync-alt w-5 text-center"></i> Sirkulasi
+            </div>
+
+            <div class="nav-label">Data Master</div>
+            <div class="nav-link" id="nav-biblio" onclick="loadFrame('daftarbibliografi.html', this)">
+                <i class="fas fa-book w-5 text-center"></i> Bibliografi
+            </div>
+            <div class="nav-link" id="nav-anggota" onclick="loadFrame('keanggotaan.html', this)">
+                <i class="fas fa-users w-5 text-center"></i> Keanggotaan
+            </div>
+
+            <div class="nav-label">Layanan Cetak</div>
+            <div class="nav-link" id="nav-label" onclick="loadFrame('label.html', this)">
+                <i class="fas fa-tag w-5 text-center"></i> Cetak Label
+            </div>
+            <div class="nav-link" id="nav-barcode" onclick="loadFrame('barcode.html', this)">
+                <i class="fas fa-barcode w-5 text-center"></i> Cetak Barcode
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="footer-btn" onclick="toggleDarkMode()">
+                <i id="themeIcon" class="fas fa-moon"></i> <span id="themeText">Mode Gelap</span>
+            </div>
+            <div class="footer-btn text-red-500 mt-1" onclick="handleLogout()">
+                <i class="fas fa-power-off"></i> <span>Keluar</span>
+            </div>
+        </div>
+    </aside>
+    <main class="main">
+        <div class="frame-box" id="frame-container"></div>
+    </main>
+</div>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBB-vrCvxeSapbedNqQIfZ9Bh5de-sUDAQ",
+        databaseURL: "https://databuku-6385c-default-rtdb.firebaseio.com",
+        projectId: "databuku-6385c",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let isDarkMode = false;
+
+    db.ref('settings/dark_mode').on('value', snap => {
+        isDarkMode = snap.val() || false;
+        applyTheme(isDarkMode);
+    });
+
+    function toggleDarkMode() { db.ref('settings/dark_mode').set(!isDarkMode); }
+    
+    function applyTheme(dark) {
+        document.body.classList.toggle('dark-theme', dark);
+        const icon = document.getElementById('themeIcon');
+        const text = document.getElementById('themeText');
+        if (icon && text) {
+            icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+            text.innerText = dark ? 'Mode Terang' : 'Mode Gelap';
+        }
+    }
+
+    function handleLogout() { 
+        sessionStorage.removeItem('isAdmin'); 
+        window.location.replace('login.html'); 
+    }
+
+    function loadFrame(src, el) {
+        if (el.classList.contains('active')) return;
+
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        el.classList.add('active');
+
+        const container = document.getElementById('frame-container');
+        
+        container.innerHTML = '';
+
+        const f = document.createElement('iframe');
+        f.src = src;
+        container.appendChild(f);
+    }
+
+    window.onload = () => {
+        const firstBtn = document.getElementById('nav-beranda');
+        loadFrame('beranda.html', firstBtn);
+    };
+</script>
+</body>
+</html>

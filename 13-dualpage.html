@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dual page</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
+        
+        .master-container { 
+            position: relative;
+            width: 100vw; 
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-background {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .overlay-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s linear;
+        }
+
+        .overlay-mask.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .floating-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 50vw;
+            height: 100vh;
+            background: #fff;
+            z-index: 1000;
+            transform: translate3d(-100%, 0, 0);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
+
+        .sensor-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 45px;
+            height: 100%;
+            background: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .floating-sidebar.open {
+            transform: translate3d(0, 0, 0);
+        }
+
+        .floating-sidebar.open + .sensor-handle {
+            transform: translate3d(50vw, 0, 0);
+        }
+
+        .vertical-text {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 13px;
+            letter-spacing: 4px;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+
+        #customModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content { 
+            background: #fff; 
+            width: 90%; 
+            max-width: 450px; 
+            padding: 2rem; 
+            border-radius: 1.5rem;
+        }
+
+        body.dark-theme .modal-content { background: #0f172a; color: #f1f5f9; }
+        body.dark-theme .floating-sidebar { background: #0f172a; }
+
+        .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-top: 0.3rem;
+            background: #f8fafc;
+            color: #0f172a;
+            outline: none;
+        }
+
+        body.dark-theme .input-field { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+    </style>
+</head>
+<body>
+
+    <div class="master-container">
+        <div class="main-background">
+            <iframe id="frame1" src="about:blank"></iframe>
+        </div>
+
+        <div id="overlay" class="overlay-mask"></div>
+
+        <div class="floating-sidebar" id="sidebar">
+            <iframe id="frame2" src="about:blank"></iframe>
+        </div>
+
+        <div class="sensor-handle" id="triggerZone">
+            <span class="vertical-text" id="labelText">MENU</span>
+        </div>
+    </div>
+
+    <div id="customModal">
+        <div class="modal-content">
+            <h2 class="text-xl font-black mb-6 uppercase text-blue-600">Settings</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold uppercase opacity-50">URL Utama</label>
+                    <input type="url" id="urlSlot1" class="input-field">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase opacity-50">URL Sidebar</label>
+                    <input type="url" id="urlSlot2" class="input-field">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase opacity-50">Teks Handle</label>
+                    <input type="text" id="txtLabel" class="input-field">
+                </div>
+                <button id="saveBtn" class="w-full bg-black text-white font-bold py-3 rounded-lg uppercase text-xs tracking-widest hover:bg-gray-800 transition-colors">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBB-vrCvxeSapbedNqQIfZ9Bh5de-sUDAQ",
+            databaseURL: "https://databuku-6385c-default-rtdb.firebaseio.com",
+            projectId: "databuku-6385c"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const frame1 = document.getElementById('frame1');
+        const frame2 = document.getElementById('frame2');
+        const modal = document.getElementById('customModal');
+        const input1 = document.getElementById('urlSlot1');
+        const input2 = document.getElementById('urlSlot2');
+        const inputLabel = document.getElementById('txtLabel');
+        const labelText = document.getElementById('labelText');
+        const triggerZone = document.getElementById('triggerZone');
+
+        let defaultLabel = "MENU";
+
+        rtdb.ref('dual_slots').on('value', snap => {
+            const d = snap.val() || { slot1: '', slot2: '', label2: 'MENU' };
+            input1.value = d.slot1 || '';
+            input2.value = d.slot2 || '';
+            defaultLabel = d.label2 || 'MENU';
+            inputLabel.value = defaultLabel;
+            
+            if (!sidebar.classList.contains('open')) {
+                labelText.innerText = defaultLabel;
+            }
+
+            if (d.slot1 && frame1.src !== d.slot1) frame1.src = d.slot1;
+            if (d.slot2 && frame2.src !== d.slot2) frame2.src = d.slot2;
+        });
+
+        rtdb.ref('settings/dark_mode').on('value', snap => {
+            document.body.classList.toggle('dark-theme', !!snap.val());
+        });
+
+        const toggleSidebar = (state) => {
+            if (state) {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+                labelText.innerText = "TUTUP";
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+                labelText.innerText = defaultLabel;
+            }
+        };
+
+        triggerZone.onmouseenter = () => {
+            if (!sidebar.classList.contains('open')) toggleSidebar(true);
+        };
+
+        triggerZone.onclick = () => {
+            if (sidebar.classList.contains('open')) toggleSidebar(false);
+        };
+
+        overlay.onclick = () => toggleSidebar(false);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '0' && !['INPUT'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                modal.style.display = (modal.style.display === 'flex' ? 'none' : 'flex');
+            }
+            if (e.key === 'Escape') {
+                modal.style.display = 'none';
+                toggleSidebar(false);
+            }
+        });
+
+        document.getElementById('saveBtn').onclick = () => {
+            rtdb.ref('dual_slots').update({
+                slot1: input1.value.trim(),
+                slot2: input2.value.trim(),
+                label2: inputLabel.value.trim(),
+                updatedAt: Date.now()
+            }).then(() => {
+                modal.style.display = 'none';
+            });
+        };
+    </script>
+</body>
+</html>
