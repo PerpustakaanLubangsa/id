@@ -25,6 +25,8 @@
             --text-main: #3c4043;
             --text-muted: #5f6368;
             --border: #dadce0;
+            --scrollbar-thumb: #dadce0;
+            --scrollbar-hover: #bdc1c6;
         }
         body.dark-theme {
             --bg-body: #202124;
@@ -34,6 +36,8 @@
             --text-main: #e8eaed;
             --text-muted: #bdc1c6;
             --border: #3c4043;
+            --scrollbar-thumb: #3c4043;
+            --scrollbar-hover: #5f6368;
         }
         body { 
             font-family: 'Segoe UI', Tahoma, sans-serif; 
@@ -54,6 +58,19 @@
             z-index: 50; 
             height: 100vh;
         }
+        .nav-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .nav-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .nav-container::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 10px;
+        }
+        .nav-container::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-hover);
+        }
         .brand-section { 
             padding: 24px 20px; 
             display: flex; 
@@ -64,9 +81,7 @@
         .brand-icon { font-size: 1.25rem; color: var(--primary); }
         .brand-text { font-size: 0.95rem; font-weight: 800; color: var(--text-main); line-height: 1.2; letter-spacing: 0.5px; text-transform: uppercase; }
         .brand-text span { color: var(--primary); }
-        
         .nav-container { padding: 12px; flex-grow: 1; overflow-y: auto; }
-        
         .nav-label {
             font-size: 10px;
             font-weight: 800;
@@ -76,16 +91,14 @@
             margin: 20px 0 8px 16px;
             opacity: 0.6;
         }
-
         .nav-divider {
             height: 1px;
             background: var(--border);
             margin: 8px 16px;
             opacity: 0.5;
         }
-
         .nav-link { 
-            padding: 12px 16px; 
+            padding: 10px 16px; 
             display: flex; 
             align-items: center; 
             gap: 12px;
@@ -102,7 +115,6 @@
             color: var(--primary); 
             background: var(--bg-active); 
         }
-        
         .main { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; overflow: hidden; }
         .frame-box { 
             background: var(--bg-box); 
@@ -114,14 +126,12 @@
             position: relative; 
             display: flex;
         }
-
         iframe { 
             width: 100%; 
             height: 100%; 
             border: none; 
             background: var(--bg-box);
         }
-        
         .sidebar-footer {
             padding: 16px;
             border-top: 1px solid var(--border);
@@ -150,30 +160,54 @@
             <div class="brand-text">PERPUSTAKAAN<br><span>LUBANGSA</span></div>
         </div>
         <div id="dynamic-nav" class="nav-container">
-            <div class="nav-link" id="nav-beranda" onclick="loadFrame('beranda.html', this)">
+            <div class="nav-link" id="nav-beranda" onclick="loadFrame('03-beranda.html', this)">
                 <i class="fas fa-home w-5 text-center"></i> Beranda
             </div>
             
             <div class="nav-divider"></div>
-            
-            <div class="nav-link" id="nav-sirkulasi" onclick="loadFrame('sirkulasi.html', this)">
+
+            <div class="nav-label">Layanan Utama</div>
+            <div class="nav-link" onclick="loadFrame('04-sirkulasi.html', this)">
                 <i class="fas fa-sync-alt w-5 text-center"></i> Sirkulasi
             </div>
+            <div class="nav-link" onclick="loadFrame('16-daftar-peminjaman.html', this)">
+                <i class="fas fa-list-ul w-5 text-center"></i> Daftar Peminjam
+            </div>
+            <div class="nav-link" onclick="loadFrame('15-daftar-keterlambatan.html', this)">
+                <i class="fas fa-clock w-5 text-center"></i> Daftar Keterlambatan
+            </div>
+            <div class="nav-link" onclick="loadFrame('09-log-form.html', this)">
+                <i class="fas fa-history w-5 text-center"></i> Log Form
+            </div>
 
-            <div class="nav-label">Data Master</div>
-            <div class="nav-link" id="nav-biblio" onclick="loadFrame('daftarbibliografi.html', this)">
+            <div class="nav-label">Data Buku</div>
+            <div class="nav-link" onclick="loadFrame('17daftar-bibliografi.html', this)">
                 <i class="fas fa-book w-5 text-center"></i> Bibliografi
             </div>
-            <div class="nav-link" id="nav-anggota" onclick="loadFrame('keanggotaan.html', this)">
-                <i class="fas fa-users w-5 text-center"></i> Keanggotaan
-            </div>
-
-            <div class="nav-label">Layanan Cetak</div>
-            <div class="nav-link" id="nav-label" onclick="loadFrame('label.html', this)">
+            <div class="nav-link" onclick="loadFrame('06-label.html', this)">
                 <i class="fas fa-tag w-5 text-center"></i> Cetak Label
             </div>
-            <div class="nav-link" id="nav-barcode" onclick="loadFrame('barcode.html', this)">
+            <div class="nav-link" onclick="loadFrame('05-barcode.html', this)">
                 <i class="fas fa-barcode w-5 text-center"></i> Cetak Barcode
+            </div>
+
+            <div class="nav-label">Data Anggota</div>
+            <div class="nav-link" onclick="loadFrame('10-keanggotaan.html', this)">
+                <i class="fas fa-users w-5 text-center"></i> Keanggotaan
+            </div>
+            <div class="nav-link" onclick="loadFrame('08-pendaftaran-anggota.html', this)">
+                <i class="fas fa-user-plus w-5 text-center"></i> Pendaftaran Anggota
+            </div>
+            <div class="nav-link" onclick="loadFrame('11-impor-anggota.html', this)">
+                <i class="fas fa-file-import w-5 text-center"></i> Impor Anggota
+            </div>
+
+            <div class="nav-label">Sistem & Lainnya</div>
+            <div class="nav-link" onclick="loadFrame('12-form.html', this)">
+                <i class="fas fa-edit w-5 text-center"></i> Form Input
+            </div>
+            <div class="nav-link" onclick="loadFrame('01-opac.html', this)">
+                <i class="fas fa-search w-5 text-center"></i> OPAC
             </div>
         </div>
 
@@ -229,7 +263,6 @@
         el.classList.add('active');
 
         const container = document.getElementById('frame-container');
-        
         container.innerHTML = '';
 
         const f = document.createElement('iframe');
@@ -239,7 +272,7 @@
 
     window.onload = () => {
         const firstBtn = document.getElementById('nav-beranda');
-        loadFrame('beranda.html', firstBtn);
+        loadFrame('03-beranda.html', firstBtn);
     };
 </script>
 </body>
