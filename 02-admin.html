@@ -3,7 +3,7 @@
 <head>
     <script>
         if (sessionStorage.getItem('isAdmin') !== 'true') {
-            window.location.replace('login.html');
+            window.location.replace('index.html');
             document.write('Akses ditolak. Mengalihkan...');
         }
     </script>
@@ -219,7 +219,7 @@
 
     function handleLogout() { 
         sessionStorage.removeItem('isAdmin'); 
-        window.location.replace('login.html'); 
+        window.location.replace('index.html'); 
     }
 
     function loadFrame(src, el) {
